@@ -1,0 +1,6 @@
+{
+  "name": "SERS",
+  "description": "A cutting-edge micro-blogging application with a modern 3-column layout, real-time interactive feed, custom theme switcher, and exportable Next.js/Supabase architecture configurations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
