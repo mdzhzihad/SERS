@@ -47,20 +47,19 @@ export default function ControlPanel({
         )}
       </div>
 
-      {/* Modern High-End Theme Switcher & Dashboard Tools */}
-      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900/45 border border-slate-250 dark:border-zinc-900/60 space-y-4">
+      {/* Modern Theme Switcher */}
+      <div className="p-4 rounded-2xl bg-slate-50/50 dark:bg-zinc-900/40 border border-slate-200 dark:border-zinc-800 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black uppercase text-slate-400 dark:text-zinc-500 font-mono tracking-wider flex items-center gap-1.5">
+          <span className="text-xs font-black uppercase text-slate-400 dark:text-zinc-500 tracking-wide flex items-center gap-1.5">
             <Settings className="w-3.5 h-3.5 text-slate-400 animate-spin-slow" />
-            <span>SERS System Controls</span>
+            <span>Display Settings</span>
           </span>
         </div>
 
-        {/* 1. Theme switch selector */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-850/80 pb-3">
+        <div className="flex items-center justify-between">
           <div className="text-left">
-            <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Active Aesthetics</p>
-            <p className="text-[10px] text-slate-400 dark:text-zinc-500">Currently: {theme === 'light' ? 'Slate Theme' : 'Zinc Dark'}</p>
+            <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Comfort Theme</p>
+            <p className="text-[10px] text-slate-400 dark:text-zinc-500">Currently: {theme === 'light' ? 'Light mode' : 'Dark mode'}</p>
           </div>
           <button
             onClick={toggleTheme}
@@ -71,21 +70,6 @@ export default function ControlPanel({
             ) : (
               <Sun className="w-4 h-4 text-amber-400" />
             )}
-          </button>
-        </div>
-
-        {/* 2. Simulation triggers (Bot Tweet arrive) */}
-        <div className="space-y-2">
-          <div className="text-left">
-            <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Database Simulator</p>
-            <p className="text-[10px] text-slate-400 dark:text-zinc-500">Replicate incoming chronological streams</p>
-          </div>
-          <button
-            onClick={onSimulateBotArrival}
-            className="w-full flex items-center justify-center gap-2 px-3  py-2.5 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 hover:shadow-md transition cursor-pointer active:scale-98"
-          >
-            <RefreshCw className="w-3.5 h-3.5 text-violet-100" />
-            <span>Simulate Live Bot Post</span>
           </button>
         </div>
       </div>
@@ -127,10 +111,10 @@ export default function ControlPanel({
       <div className="px-2 space-y-1">
         <div className="flex items-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-          <span className="text-[10px] font-extrabold text-slate-400 dark:text-zinc-500 font-mono">SUPABASE SHIELD ACTIVATE</span>
+          <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400">Security Verified</span>
         </div>
-        <p className="text-[9px] text-slate-400 dark:text-zinc-650 font-mono text-left select-none">
-          Client context linked with secure Row Level Security rules. SERS version 1.1 (Beta release). Local time sync active.
+        <p className="text-[10px] text-slate-400 dark:text-zinc-550 text-left select-none">
+          SERS Social Hub &copy; 2026. Made with love for premium interactions.
         </p>
       </div>
 

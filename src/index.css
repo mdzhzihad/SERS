@@ -1,1 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+:root {
+  /* ==========================================================================
+     LIGHT THEME (Default)
+     ========================================================================== */
+  /* Primary Background: Premium Soft Off-White */
+  --bg-primary: #F9FAFB;
+  --bg-primary-dark: #F3F4F6;
+  --bg-black: #111827;
+
+  /* Card/Modal Background: Crisp Pure White */
+  --bg-card: #FFFFFF;
+  --bg-card-dark: #FFFFFF;
+  --bg-card-overlay-40: rgba(255, 255, 255, 0.4);
+  --bg-card-overlay-30: rgba(255, 255, 255, 0.3);
+  --bg-card-overlay-10: rgba(255, 255, 255, 0.1);
+  --bg-primary-overlay-50: rgba(249, 250, 251, 0.5);
+
+  /* Brand/Accent Color: Premium Royal Violet #6366F1 (Indigo) */
+  --color-accent-violet-light: rgba(99, 102, 241, 0.08);
+  --color-accent-violet-semi: rgba(99, 102, 241, 0.15);
+  --color-accent-violet: #6366F1;
+  --color-accent-violet-hover: #4F46E5;
+
+  /* Primary Text: High-Contrast Crisp Charcoal #111827 */
+  --text-primary: #111827;
+
+  /* Secondary/Muted Text: Cool Muted Slate/Grey */
+  --text-muted: #6B7280;
+
+  /* Borders and Divides (Clean subtle separators) */
+  --border-color-1: #E5E7EB;
+  --border-color-2: #F3F4F6;
+  --border-color-3: #F9FAFB;
+
+  /* Scrollbars selection */
+  --scrollbar-track: #F3F4F6;
+  --scrollbar-thumb: #D1D5DB;
+  --scrollbar-thumb-hover: #9CA3AF;
+}
+
+.dark {
+  /* ==========================================================================
+     DARK THEME (Espresso & Rich Onyx colors)
+     ========================================================================== */
+  /* Primary Background: Espresso Black #121212 */
+  --bg-primary: #121212;
+  --bg-primary-dark: #121212;
+  --bg-black: #000000;
+
+  /* Card/Modal Background: Rich Onyx #1E1E1E */
+  --bg-card: #1E1E1E;
+  --bg-card-dark: #1E1E1E;
+  --bg-card-overlay-40: rgba(30, 30, 30, 0.4);
+  --bg-card-overlay-30: rgba(30, 30, 30, 0.3);
+  --bg-card-overlay-10: rgba(30, 30, 30, 0.1);
+  --bg-primary-overlay-50: rgba(18, 18, 18, 0.5);
+
+  /* Brand/Accent Color: Premium Royal Violet #6366F1 (Indigo) */
+  --color-accent-violet-light: rgba(99, 102, 241, 0.1);
+  --color-accent-violet-semi: rgba(99, 102, 241, 0.18);
+  --color-accent-violet: #6366F1;
+  --color-accent-violet-hover: #4F46E5;
+
+  /* Primary Text: Crisp Off-White #F3F4F6 */
+  --text-primary: #F3F4F6;
+
+  /* Secondary/Muted Text: Cool Grey #9CA3AF */
+  --text-muted: #9CA3AF;
+
+  /* Borders and Divides (Mapped to elegant dark charcoal) */
+  --border-color-1: #292929;
+  --border-color-2: #242424;
+  --border-color-3: #202020;
+
+  /* Scrollbars selection */
+  --scrollbar-track: #121212;
+  --scrollbar-thumb: #2D2D2D;
+  --scrollbar-thumb-hover: #3D3D3D;
+}
+
+@theme {
+  /* Typography bindings */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Primary Background binds */
+  --color-slate-50: var(--bg-primary);
+  --color-zinc-950: var(--bg-primary-dark);
+  --color-black: var(--bg-black);
+
+  /* Card/Modal Background binds */
+  --color-white: var(--bg-card);
+  --color-zinc-900: var(--bg-card-dark);
+  --color-zinc-900\/40: var(--bg-card-overlay-40);
+  --color-zinc-900\/30: var(--bg-card-overlay-30);
+  --color-zinc-900\/10: var(--bg-card-overlay-10);
+  --color-slate-50\/50: var(--bg-primary-overlay-50);
+
+  /* Brand/Accent Color binds */
+  --color-violet-50: var(--color-accent-violet-light);
+  --color-violet-100: var(--color-accent-violet-semi);
+  --color-violet-500: var(--color-accent-violet);
+  --color-violet-600: var(--color-accent-violet);
+  --color-violet-605: var(--color-accent-violet);
+  --color-violet-650: var(--color-accent-violet);
+  --color-violet-700: var(--color-accent-violet-hover);
+  --color-indigo-400: #818CF8;
+  --color-indigo-600: var(--color-accent-violet);
+  --color-indigo-650: var(--color-accent-violet);
+  --color-violet-400: #818CF8;
+
+  /* Primary Text binds */
+  --color-slate-900: var(--text-primary);
+  --color-slate-850: var(--text-primary);
+  --color-slate-800: var(--text-primary);
+  --color-zinc-50: var(--text-primary);
+  --color-zinc-100: var(--text-primary);
+  --color-zinc-200: var(--text-primary);
+  --color-zinc-150: var(--text-primary);
+
+  /* Secondary/Muted Text binds */
+  --color-slate-400: var(--text-muted);
+  --color-slate-450: var(--text-muted);
+  --color-slate-500: var(--text-muted);
+  --color-zinc-300: var(--text-muted);
+  --color-zinc-400: var(--text-muted);
+  --color-zinc-500: var(--text-muted);
+  --color-zinc-550: var(--text-muted);
+  --color-zinc-650: var(--text-muted);
+
+  /* Borders and Divides binds */
+  --color-slate-200: var(--border-color-1);
+  --color-slate-150: var(--border-color-2);
+  --color-slate-100: var(--border-color-3);
+  --color-slate-205: var(--border-color-1);
+  --color-zinc-800: var(--border-color-1);
+  --color-zinc-805: var(--border-color-1);
+  --color-zinc-850: var(--border-color-2);
+  --color-zinc-850\/80: var(--border-color-2);
+}
+
+/* Base styles to dynamically bind background and text color to body */
+:root, html, body {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Support input field native text overrides */
+input, textarea {
+  color: var(--text-primary) !important;
+}
+
+/* Override scrollbar elements */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Feather, Sparkles, X, ShieldAlert, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Feather, X, ArrowRight, AlertCircle } from 'lucide-react';
 import { Profile } from '../types';
 import { getSupabase } from '../lib/supabaseClient';
 
@@ -14,8 +14,6 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [method, setMethod] = useState<'password' | 'magic'>('password');
-  const [magicSent, setMagicSent] = useState(false);
   const [confirmationNeeded, setConfirmationNeeded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -33,21 +31,7 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
     }
 
     try {
-      if (method === 'magic') {
-        const { error } = await supabase.auth.signInWithOtp({
-          email: email.trim(),
-          options: {
-            emailRedirectTo: window.location.origin
-          }
-        });
-
-        if (error) {
-          throw error;
-        }
-
-        setMagicSent(true);
-        setIsSubmitting(false);
-      } else if (isSignUp) {
+      if (isSignUp) {
         // Sign Up with password
         const formattedUsername = username.trim().toLowerCase().replace(/\s+/g, '');
         if (formattedUsername.length < 3) {
@@ -144,15 +128,12 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
         <div className="p-6 text-center space-y-5">
           {/* SERS Logo */}
           <div className="flex flex-col items-center gap-1">
-            <div className="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-violet-600/30">
+            <div className="w-12 h-12 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-violet-600/30 font-bold">
               <Feather className="w-6 h-6 animate-pulse" />
             </div>
             <h2 className="text-xl font-black mt-2 bg-gradient-to-r from-violet-600 to-indigo-600 dark:from-violet-400 dark:to-indigo-400 bg-clip-text text-transparent">
-              {isSignUp ? 'Join the SERS Feed' : 'SERS Authorization'}
+              {isSignUp ? 'Create your Account' : 'Sign in to SERS'}
             </h2>
-            <p className="text-[11px] text-slate-400 dark:text-zinc-400 font-mono">
-              SECURE SUPABASE AUTH GATEWAY
-            </p>
           </div>
 
           {errorMsg && (
@@ -164,37 +145,37 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
             </div>
           )}
 
-          {!magicSent && !confirmationNeeded ? (
+          {!confirmationNeeded ? (
             <form onSubmit={handleSubmit} className="space-y-4 text-left">
               
-              {/* Method choice tab */}
+              {/* Type Switcher Tab */}
               <div className="flex bg-slate-100 dark:bg-zinc-950 p-1 rounded-xl">
                 <button
                   type="button"
-                  onClick={() => { setMethod('password'); setErrorMsg(null); }}
+                  onClick={() => { setIsSignUp(false); setErrorMsg(null); }}
                   className={`flex-1 text-center py-2 text-[10px] sm:text-xs font-bold rounded-lg cursor-pointer transition ${
-                    method === 'password'
+                    !isSignUp
                       ? 'bg-white dark:bg-zinc-900 text-violet-600 dark:text-violet-400 shadow-sm'
                       : 'text-slate-500 hover:text-slate-900 dark:text-zinc-500'
                   }`}
                 >
-                  Password Login
+                  Sign In
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setMethod('magic'); setErrorMsg(null); }}
+                  onClick={() => { setIsSignUp(true); setErrorMsg(null); }}
                   className={`flex-1 text-center py-2 text-[10px] sm:text-xs font-bold rounded-lg cursor-pointer transition ${
-                    method === 'magic'
+                    isSignUp
                       ? 'bg-white dark:bg-zinc-900 text-violet-600 dark:text-violet-400 shadow-sm'
                       : 'text-slate-500 hover:text-slate-900 dark:text-zinc-500'
                   }`}
                 >
-                  Magic Link Email
+                  Register
                 </button>
               </div>
 
               {/* Dynamic sign-up fields row */}
-              {isSignUp && method === 'password' && (
+              {isSignUp && (
                 <div className="grid grid-cols-2 gap-2 animate-in slide-in-from-top-1 duration-150">
                   <div>
                     <label className="block text-[10px] font-bold font-mono text-slate-400 uppercase mb-0.5">Display Name</label>
@@ -208,7 +189,7 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold font-mono text-slate-400 uppercase mb-0.5">Handle</label>
+                    <label className="block text-[10px] font-bold font-mono text-slate-400 uppercase mb-0.5">Username Handle</label>
                     <input
                       type="text"
                       className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg px-2.5 py-2 text-xs outline-none text-slate-800 dark:text-zinc-100 font-mono focus:border-violet-600/30"
@@ -238,93 +219,64 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
               </div>
 
               {/* Password */}
-              {method === 'password' && (
-                <div>
-                  <label className="block text-[10px] font-bold font-mono text-slate-400 uppercase mb-1">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="password"
-                      required
-                      placeholder={isSignUp ? "Create a strong password (6+ chars)" : "Enter account password"}
-                      className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg pl-9 pr-3 py-2.5 text-xs outline-none text-slate-800 dark:text-zinc-100 focus:border-violet-500/50"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </div>
+              <div>
+                <label className="block text-[10px] font-bold font-mono text-slate-400 uppercase mb-1">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="password"
+                    required
+                    placeholder={isSignUp ? "At least 6 characters" : "Enter password"}
+                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg pl-9 pr-3 py-2.5 text-xs outline-none text-slate-800 dark:text-zinc-100 focus:border-violet-500/50"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
                 </div>
-              )}
+              </div>
 
               {/* Action Trigger Button */}
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold p-3 rounded-xl transition duration-150 cursor-pointer active:scale-98 flex items-center justify-center gap-1.5 text-xs text-center disabled:opacity-50"
+                className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold p-3 rounded-xl transition duration-150 cursor-pointer active:scale-98 flex items-center justify-center gap-1.5 text-xs text-center disabled:opacity-50 font-sans"
               >
                 <span>
                   {isSubmitting
-                    ? 'Processing Supabase handshake...'
-                    : method === 'magic'
-                    ? 'Send SERS Magic Link'
+                    ? 'Processing connection...'
                     : isSignUp
                     ? 'Create SERS Account'
-                    : 'Access Feed'}
+                    : 'Log In'}
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
               {/* Toggler sign up / in */}
-              {method === 'password' && (
-                <div className="text-center pt-1.5">
-                  <button
-                    type="button"
-                    onClick={() => { setIsSignUp(!isSignUp); setErrorMsg(null); }}
-                    className="text-[11px] font-bold text-violet-605 dark:text-violet-400 hover:underline cursor-pointer"
-                  >
-                    {isSignUp ? 'Already have a SERS profile? Login here' : 'New peer? Generate an account instantly'}
-                  </button>
-                </div>
-              )}
+              <div className="text-center pt-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setIsSignUp(!isSignUp); setErrorMsg(null); }}
+                  className="text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
+                >
+                  {isSignUp ? 'Already have a profile? Sign In' : 'New to SERS? Create an account instantly'}
+                </button>
+              </div>
             </form>
-          ) : confirmationNeeded ? (
+          ) : (
             <div className="py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
               <div className="w-14 h-14 bg-amber-50 dark:bg-amber-950/40 rounded-full flex items-center justify-center mx-auto text-amber-500">
                 <Mail className="w-7 h-7" />
               </div>
               <div className="space-y-1.5">
-                <h4 className="font-extrabold text-base text-slate-800 dark:text-zinc-100">Verification Needed!</h4>
+                <h4 className="font-extrabold text-base text-slate-800 dark:text-zinc-100">Verification Link Sent</h4>
                 <p className="text-xs text-slate-500 dark:text-zinc-400 px-2 leading-relaxed">
-                  Excellent! Your account request was completed. Standard Supabase setups enable email confirmation by default.
+                  Your account creation request was sent! Please check your inbox at <strong className="text-violet-650 dark:text-violet-400">{email}</strong> to verify your email.
                 </p>
-                <div className="bg-amber-500/5 border border-dashed border-amber-500/20 p-2.5 rounded-xl text-left text-[10px] text-amber-850 dark:text-amber-300 font-mono">
-                  Check your inbox at <strong className="text-violet-605">{email}</strong> to verify, or disable Email Confirmation in your Supabase Auth Providers Settings to allow immediate log-ins!
+                <div className="bg-amber-500/5 border border-dashed border-amber-500/10 p-2.5 rounded-xl text-left text-[10px] text-amber-800 dark:text-amber-300 font-mono">
+                  If you have Email Confirmation disabled in your Supabase Auth settings, you can login immediately.
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-              <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-950/40 rounded-full flex items-center justify-center mx-auto text-emerald-500">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="font-extrabold text-base text-slate-800 dark:text-zinc-100">Magic Link Transmitted!</h4>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 px-4 leading-relaxed">
-                  We have successfully completed the Supabase sign-in request. Please click the verification link sent directly to your inbox to load your session!
-                </p>
-              </div>
-            </div>
           )}
-
-          {/* RLS Policy Notice */}
-          <div className="bg-slate-50 dark:bg-zinc-950 p-3 rounded-xl border border-slate-100 dark:border-zinc-850 flex gap-2 text-left">
-            <ShieldAlert className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 font-mono">SUPABASE DB HANDLER</span>
-              <p className="text-[9px] text-slate-400 dark:text-zinc-500 leading-normal font-mono">
-                Sessions are strictly certified. Your read-write permissions are defined directly on Postgres Row Level Security configurations.
-              </p>
-            </div>
-          </div>
         </div>
 
       </div>

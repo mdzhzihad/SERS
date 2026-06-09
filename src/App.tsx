@@ -20,8 +20,13 @@ export default function App() {
   // 1. Core States
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
+    const stored = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
+    return stored ? JSON.parse(stored) : null;
+  });
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    return !!localStorage.getItem(LOCAL_STORAGE_USER_KEY);
+  });
   const [activeTab, setActiveTab] = useState<'home' | 'profile' | 'bookmarks' | 'dev-console'>('home');
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -217,8 +222,12 @@ export default function App() {
         setIsLoggedIn(true);
         localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(userProfile));
       } else {
-        setCurrentUser(null);
-        setIsLoggedIn(false);
+        // Only clear if nothing is cached in localStorage to prevent transient state logouts on page load
+        const stored = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
+        if (!stored) {
+          setCurrentUser(null);
+          setIsLoggedIn(false);
+        }
       }
 
       await fetchSupabaseData();
@@ -249,7 +258,7 @@ export default function App() {
         setCurrentUser(userProfile);
         setIsLoggedIn(true);
         localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(userProfile));
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
         setIsLoggedIn(false);
         localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
@@ -622,11 +631,10 @@ export default function App() {
 
         {/* Column 2: Central Dynamic Main Feed block */}
         <main className="flex-1 max-w-2xl border-r border-slate-200 dark:border-zinc-850 bg-white dark:bg-zinc-950 min-h-screen pb-20 relative">
-          
           <header className="sticky top-0 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-md border-b border-slate-200 dark:border-zinc-850/80 p-4 font-bold tracking-tight text-lg z-35 flex justify-between items-center sm:px-6">
             <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => { setActiveTab('home'); setSearchQuery(''); }}>
               <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-violet-600 to-indigo-600 dark:from-violet-400 dark:to-indigo-400 bg-clip-text text-transparent">
-                {activeTab === 'home' && searchQuery ? `Search results for "${searchQuery}"` : activeTab === 'home' ? 'Home Feed' : activeTab === 'profile' ? `${selectedProfile?.display_name}'s SERS` : activeTab === 'bookmarks' ? 'Saved Bookmarks' : 'Next.js Code Console'}
+                {activeTab === 'home' && searchQuery ? `Search results for "${searchQuery}"` : activeTab === 'home' ? 'Home Feed' : activeTab === 'profile' ? `${selectedProfile?.display_name}'s SERS` : 'Saved Bookmarks'}
               </span>
               <Sparkles className="w-4 h-4 text-violet-650 dark:text-violet-400 animate-pulse" />
             </div>
@@ -640,31 +648,6 @@ export default function App() {
               {theme === 'light' ? '🌙' : '☀️'}
             </button>
           </header>
-
-          {/* Supabase Status Alert Banners */}
-          {!hasSupabaseKeys() && (
-            <div className="mx-4 mt-4 p-3.5 bg-violet-50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/30 rounded-xl flex gap-3 text-left animate-in fade-in duration-200">
-              <Shield className="w-5 h-5 text-violet-605 dark:text-violet-400 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-violet-850 dark:text-violet-300 font-mono uppercase tracking-wider">Offline Sandbox Active</h4>
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
-                  SERS is running on dynamic Local Storage simulation because your Supabase secrets are not declared yet. To enable real full-stack authentication, post persistence, and multi-user threads, add your <code className="p-0.5 font-bold font-mono text-[10px] bg-slate-100 dark:bg-zinc-900 rounded">VITE_SUPABASE_URL</code> and <code className="p-0.5 font-bold font-mono text-[10px] bg-slate-100 dark:bg-zinc-900 rounded">VITE_SUPABASE_ANON_KEY</code> in the project secrets panel.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {hasSupabaseKeys() && dbError && (
-            <div className="mx-4 mt-4 p-3.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-xl flex gap-3 text-left animate-in fade-in duration-200">
-              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-amber-850 dark:text-amber-300 font-mono uppercase tracking-wider">Postgres DB Sync Required</h4>
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
-                  Excellent! SERS has established a link to your Supabase project, but your PostgreSQL tables are missing or not fully created. Click on the code symbol under the <strong className="text-violet-650 dark:text-violet-400">Next.js Code Console</strong> tab to copy and execute the Postgres schema setup script!
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* Sub-Layout conditional render */}
           <AnimatePresence mode="wait">
@@ -791,27 +774,11 @@ export default function App() {
                     </p>
                     <button
                       onClick={() => setActiveTab('home')}
-                      className="bg-violet-600 text-white font-semibold text-xs px-4 py-2 rounded-full hover:bg-violet-700 cursor-pointer transition shadow-sm inline-block"
+                      className="bg-violet-605 text-white font-semibold text-xs px-4 py-2 rounded-full hover:bg-violet-700 cursor-pointer transition shadow-sm inline-block"
                     >
                       Back to chronological feed
                     </button>
                   </div>
-                </div>
-              )}
-
-              {/* Deliverable Document Panel layout */}
-              {activeTab === 'dev-console' && (
-                <div className="p-4 sm:p-6 space-y-5">
-                  <div className="space-y-1.5 text-left">
-                    <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-50 flex items-center gap-1.5">
-                      <span className="p-1 px-1.5 bg-violet-100 dark:bg-violet-950/40 rounded text-violet-600 dark:text-violet-450 text-xs font-bold font-mono">DELIVERABLES</span>
-                      <span>Next.js & Supabase Assets</span>
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-zinc-400 leading-normal">
-                      Copy secure PostgreSQL schemas, interactive Next.js layouts, API routes and cookie auth middlewares below. Click on tabs to browse codeblocks instantly.
-                    </p>
-                  </div>
-                  <CodeViewer />
                 </div>
               )}
             </motion.div>

@@ -25,7 +25,6 @@ export default function Sidebar({
     { id: 'home', label: 'Home Feed', icon: <Home className="w-5.5 h-5.5" /> },
     { id: 'profile', label: 'My Profile', icon: <User className="w-5.5 h-5.5" />, requiresAuth: true },
     { id: 'bookmarks', label: 'Bookmarks', icon: <Bookmark className="w-5.5 h-5.5" />, requiresAuth: true },
-    { id: 'dev-console', label: 'Next.js Console', icon: <FileCode2 className="w-5.5 h-5.5" /> },
   ];
 
   return (
@@ -89,7 +88,7 @@ export default function Sidebar({
             className="w-full bg-violet-600 text-white font-bold p-3 rounded-full flex items-center justify-center gap-2 hover:bg-violet-700 active:scale-[0.98] shadow-md shadow-violet-600/10 cursor-pointer transition hidden sm:flex"
           >
             <LogIn className="w-4 h-4" />
-            <span>Simulate Auth</span>
+            <span>Sign In</span>
           </button>
         )}
       </div>
