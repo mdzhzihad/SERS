@@ -25,8 +25,76 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
 
     const supabase = getSupabase();
     if (!supabase) {
-      setErrorMsg("Supabase client is not configured yet. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY first.");
-      setIsSubmitting(false);
+      // Local offline simulation mode
+      try {
+        const formattedUsername = username.trim().toLowerCase().replace(/\s+/g, '');
+        if (isSignUp) {
+          if (formattedUsername.length < 3) {
+            throw new Error("Username handle must be at least 3 characters long.");
+          }
+          const localUsersRaw = localStorage.getItem('sers_local_users') || '[]';
+          const localUsers = JSON.parse(localUsersRaw);
+          if (localUsers.some((u: any) => u.username === formattedUsername)) {
+            throw new Error("This username handle is already taken.");
+          }
+          if (localUsers.some((u: any) => u.email === email.trim().toLowerCase())) {
+            throw new Error("This email address is already registered.");
+          }
+
+          const newUser = {
+            id: 'local_user_' + Math.random().toString(36).slice(2, 9),
+            email: email.trim().toLowerCase(),
+            password,
+            username: formattedUsername,
+            display_name: displayName.trim() || formattedUsername,
+            avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${formattedUsername}`,
+            bio: 'SERS designer onboarded offline.',
+            created_at: new Date().toISOString()
+          };
+
+          localUsers.push(newUser);
+          localStorage.setItem('sers_local_users', JSON.stringify(localUsers));
+
+          const userProfile: Profile = {
+            id: newUser.id,
+            username: newUser.username,
+            display_name: newUser.display_name,
+            avatar_url: newUser.avatar_url,
+            bio: newUser.bio,
+            created_at: newUser.created_at
+          };
+
+          onSuccess(userProfile);
+          onClose();
+        } else {
+          const localUsersRaw = localStorage.getItem('sers_local_users') || '[]';
+          const localUsers = JSON.parse(localUsersRaw);
+          const found = localUsers.find(
+            (u: any) =>
+              u.email === email.trim().toLowerCase() && u.password === password
+          );
+
+          if (!found) {
+            throw new Error("Invalid credentials or user does not exist locally. Register an account first!");
+          }
+
+          const userProfile: Profile = {
+            id: found.id,
+            username: found.username,
+            display_name: found.display_name,
+            avatar_url: found.avatar_url,
+            bio: found.bio,
+            created_at: found.created_at
+          };
+
+          onSuccess(userProfile);
+          onClose();
+        }
+      } catch (err: any) {
+        setErrorMsg(err.message || "Local auth failed.");
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -36,6 +104,17 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
         const formattedUsername = username.trim().toLowerCase().replace(/\s+/g, '');
         if (formattedUsername.length < 3) {
           throw new Error("Username handle must be at least 3 characters long.");
+        }
+
+        // Proactively check if the username is already taken in the Supabase database
+        const { data: existingUser, error: checkError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', formattedUsername)
+          .maybeSingle();
+
+        if (existingUser) {
+          throw new Error("This username handle is already taken. Please choose another.");
         }
 
         const { data, error } = await supabase.auth.signUp({

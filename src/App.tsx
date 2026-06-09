@@ -50,8 +50,9 @@ export default function App() {
     setDbError(null);
 
     try {
-      // 1. Fetch posts joined with authors (public profiles)
-      const { data: postsData, error: postsError } = await supabase
+      // 1. Fetch posts (supporting robust in-memory join fallback if nested select fails)
+      let postsDataRaw: any[] = [];
+      const { data: joinedPosts, error: postsError } = await supabase
         .from('posts')
         .select('*, author:profiles(*)')
         .order('created_at', { ascending: false });
@@ -60,15 +61,37 @@ export default function App() {
         if (postsError.code === 'PGRST116' || postsError.message.includes('relation "public.posts" does not exist')) {
           throw new Error('Database tables do not exist yet. Please run the SQL Script in your Supabase SQL editor!');
         }
-        throw postsError;
+        console.warn("Resilient fallback: standard join select failed, querying posts table directly:", postsError.message);
+        
+        // Direct Query fallback
+        const { data: directPosts, error: directPostsError } = await supabase
+          .from('posts')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (directPostsError) throw directPostsError;
+        postsDataRaw = directPosts || [];
+      } else {
+        postsDataRaw = joinedPosts || [];
       }
 
-      // 2. Fetch comments with authors
-      const { data: commentsData, error: commentsError } = await supabase
+      // 2. Fetch comments (supporting robust in-memory join fallback)
+      let commentsDataRaw: any[] = [];
+      const { data: joinedComments, error: commentsError } = await supabase
         .from('comments')
         .select('*, author:profiles(*)');
 
-      if (commentsError) throw commentsError;
+      if (commentsError) {
+        console.warn("Resilient fallback: comments join select failed, querying comments directly:", commentsError.message);
+        const { data: directComments, error: directCommentsError } = await supabase
+          .from('comments')
+          .select('*');
+
+        if (directCommentsError) throw directCommentsError;
+        commentsDataRaw = directComments || [];
+      } else {
+        commentsDataRaw = joinedComments || [];
+      }
 
       // 3. Fetch all likes for local aggregation
       const { data: likesData, error: likesError } = await supabase
@@ -77,22 +100,37 @@ export default function App() {
 
       if (likesError) throw likesError;
 
-      // 4. Map & match relationships correctly
+      // 4. Load profiles to fulfill in-memory joins
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+
+      const profilesList = profilesData || [];
+
+      // 5. Map & match relationships correctly
       const currentUserId = (await supabase.auth.getSession()).data.session?.user?.id;
 
-      const formattedPosts: Post[] = (postsData || []).map((p: any) => {
+      const formattedPosts: Post[] = postsDataRaw.map((p: any) => {
         const postLikes = (likesData || []).filter((l: any) => l.post_id === p.id);
-        const postCommentsCount = (commentsData || []).filter((c: any) => c.post_id === p.id).length;
+        const postCommentsCount = commentsDataRaw.filter((c: any) => c.post_id === p.id).length;
         const likedByMe = currentUserId ? postLikes.some((l: any) => l.profile_id === currentUserId) : false;
 
-        const postAuthor = p.author || {
-          id: p.profile_id,
-          username: 'user_' + p.profile_id.slice(0, 5),
-          display_name: 'SERS Companion',
-          avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${p.profile_id}`,
-          bio: 'Peer user of SERS',
-          created_at: p.created_at
-        };
+        // Extract author from joined property or from loaded profiles list
+        let postAuthor = p.author;
+        if (!postAuthor && profilesList.length > 0) {
+          postAuthor = profilesList.find((prof: any) => prof.id === p.profile_id);
+        }
+
+        if (!postAuthor) {
+          postAuthor = {
+            id: p.profile_id,
+            username: 'user_' + p.profile_id.slice(0, 5),
+            display_name: 'SERS Companion',
+            avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${p.profile_id}`,
+            bio: 'Peer user of SERS',
+            created_at: p.created_at
+          };
+        }
 
         return {
           id: p.id,
@@ -108,15 +146,22 @@ export default function App() {
 
       setPosts(formattedPosts);
 
-      const formattedComments: Comment[] = (commentsData || []).map((c: any) => {
-        const commentAuthor = c.author || {
-          id: c.profile_id,
-          username: 'user_' + c.profile_id.slice(0, 5),
-          display_name: 'SERS Companion',
-          avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${c.profile_id}`,
-          bio: 'SERS commentator',
-          created_at: c.created_at
-        };
+      const formattedComments: Comment[] = commentsDataRaw.map((c: any) => {
+        let commentAuthor = c.author;
+        if (!commentAuthor && profilesList.length > 0) {
+          commentAuthor = profilesList.find((prof: any) => prof.id === c.profile_id);
+        }
+
+        if (!commentAuthor) {
+          commentAuthor = {
+            id: c.profile_id,
+            username: 'user_' + c.profile_id.slice(0, 5),
+            display_name: 'SERS Companion',
+            avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${c.profile_id}`,
+            bio: 'SERS commentator',
+            created_at: c.created_at
+          };
+        }
 
         return {
           id: c.id,
@@ -270,6 +315,87 @@ export default function App() {
       subscription.unsubscribe();
     };
   }, []);
+
+  // 3b. Hash Routing Controller
+  useEffect(() => {
+    const handleHashChange = async () => {
+      const hash = window.location.hash || '#/home';
+      
+      if (hash.startsWith('#/profile/')) {
+        const uname = hash.replace('#/profile/', '').trim();
+        if (uname) {
+          // Check local current user first
+          if (currentUser && currentUser.username.toLowerCase() === uname.toLowerCase()) {
+            setSelectedProfile(currentUser);
+            setActiveTab('profile');
+            return;
+          }
+
+          // Search in loaded posts to find user profile representation
+          const foundInPosts = posts.find(p => p.author.username.toLowerCase() === uname.toLowerCase());
+          if (foundInPosts) {
+            setSelectedProfile(foundInPosts.author);
+            setActiveTab('profile');
+            return;
+          }
+
+          // Query database
+          const supabase = getSupabase() as any;
+          if (supabase) {
+            try {
+              const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('username', uname)
+                .maybeSingle();
+
+              if (data) {
+                setSelectedProfile(data as Profile);
+                setActiveTab('profile');
+                return;
+              }
+            } catch (err) {
+              console.error("Path router DB lookup failed:", err);
+            }
+          }
+
+          // Fallback to local offline users pool
+          const localUsersRaw = localStorage.getItem('sers_local_users') || '[]';
+          const localUsers = JSON.parse(localUsersRaw);
+          const localFound = localUsers.find((u: any) => u.username.toLowerCase() === uname.toLowerCase());
+          if (localFound) {
+            const prof: Profile = {
+              id: localFound.id,
+              username: localFound.username,
+              display_name: localFound.display_name,
+              avatar_url: localFound.avatar_url,
+              bio: localFound.bio,
+              created_at: localFound.created_at
+            };
+            setSelectedProfile(prof);
+            setActiveTab('profile');
+            return;
+          }
+        }
+      } else if (hash === '#/bookmarks') {
+        setActiveTab('bookmarks');
+        setSelectedProfile(null);
+      } else if (hash === '#/dev-console') {
+        setActiveTab('dev-console');
+        setSelectedProfile(null);
+      } else {
+        setActiveTab('home');
+        setSelectedProfile(null);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange();
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, [posts, currentUser]);
 
   // 4. Synchronize theme variables
   useEffect(() => {
@@ -442,6 +568,16 @@ export default function App() {
 
     const supabase = getSupabase() as any;
     if (!supabase) {
+      // Offline local duplicate username check
+      if (updatedFields.username && updatedFields.username !== currentUser.username) {
+        const localUsersRaw = localStorage.getItem('sers_local_users') || '[]';
+        const localUsers = JSON.parse(localUsersRaw);
+        if (localUsers.some((u: any) => u.username === updatedFields.username)) {
+          alert("This username handle is already taken locally.");
+          return;
+        }
+      }
+
       const newProfile = { ...currentUser, ...updatedFields };
       setCurrentUser(newProfile);
       localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(newProfile));
@@ -462,10 +598,27 @@ export default function App() {
       localStorage.setItem(LOCAL_STORAGE_COMMENTS_KEY, JSON.stringify(updatedComments));
 
       setSelectedProfile(newProfile);
+      
+      // Update hash URL on username rename
+      window.location.hash = `#/profile/${newProfile.username}`;
       return;
     }
 
     try {
+      // Dynamic username uniqueness check in Supabase database
+      if (updatedFields.username && updatedFields.username !== currentUser.username) {
+        const { data: existingUser } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', updatedFields.username)
+          .maybeSingle();
+
+        if (existingUser) {
+          alert("This username handle is already taken. Please choose another.");
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -482,6 +635,9 @@ export default function App() {
       setCurrentUser(updatedProfile);
       setSelectedProfile(updatedProfile);
       await fetchSupabaseData();
+
+      // Update hash URL on username rename
+      window.location.hash = `#/profile/${updatedProfile.username}`;
     } catch (err: any) {
       console.error("Sync profile failed:", err);
       alert("Failed to sync profile change: " + err.message);
@@ -492,24 +648,37 @@ export default function App() {
   const handleSimulateBotArrival = async () => {
     const supabase = getSupabase() as any;
     if (!supabase) {
-      const botPool = mockProfiles.filter(p => p.id !== currentUser?.id);
-      const selectedBot = botPool[Math.floor(Math.random() * botPool.length)];
+      // Find local users or fallback to an offline bot
+      const localUsersRaw = localStorage.getItem('sers_local_users') || '[]';
+      const localUsers = JSON.parse(localUsersRaw);
+      
+      let botProfile = localUsers.find((u: any) => u.username.startsWith('sers_bot'));
+      if (!botProfile) {
+        botProfile = {
+          id: 'bot_system_sers',
+          username: 'sers_bot',
+          display_name: 'Robot SERS',
+          avatar_url: 'https://api.dicebear.com/7.x/identicon/svg?seed=sers_bot',
+          bio: 'Automated platform feedback agent.',
+          created_at: new Date().toISOString()
+        };
+      }
 
       const botPhrases = [
-        "Just updated my Supabase security policies! Enabling Postgres RLS is absolutely vital.",
-        "Vite + Tailwind v4 is clean. The CSS-only variables make compiling extremely light.",
-        "Loving SERS so far! Re-routing Next.js directory setups into single-views yields gorgeous results.",
-        "Real-time integrations combined with client-side optimisms make web applications run at true 60fps latency! 🚀"
+        "Just updated my local state persistence! Saving lists cleanly inside browser caches.",
+        "Aesthetic light and dark colors look fantastic on SERS! Comfort switching enabled.",
+        "Loving the brand new hash url-routed pages. Every user is perfectly shareable!",
+        "Optimistic likes counter response makes micro-logging run with excellent feedback speed!"
       ];
-      const randomContent = botPhrases[Math.floor(Math.random() * botPhrases.length)] + ` #${['NextJS', 'SupabaseAuth', 'Tailwindv4', 'RLS_Security', 'React19'][Math.floor(Math.random() * 5)]}`;
+      const randomContent = botPhrases[Math.floor(Math.random() * botPhrases.length)] + ` #${['SERS_Main', 'React19', 'Tailwindv4'][Math.floor(Math.random() * 3)]}`;
 
       const newPost: Post = {
         id: 'post_bot_' + Math.random().toString(36).slice(2, 9),
-        profile_id: selectedBot.id,
+        profile_id: botProfile.id,
         content: randomContent,
         created_at: new Date().toISOString(),
-        author: selectedBot,
-        likes_count: Math.floor(Math.random() * 10),
+        author: botProfile,
+        likes_count: Math.floor(Math.random() * 5),
         comments_count: 0,
         liked_by_me: false
       };
@@ -527,8 +696,30 @@ export default function App() {
         .select('*')
         .neq('id', currentUser?.id || '');
 
-      const profilePool = onlineProfiles && onlineProfiles.length > 0 ? onlineProfiles : mockProfiles;
-      const selectedBot = profilePool[Math.floor(Math.random() * profilePool.length)];
+      let recruitedBot = null;
+      if (onlineProfiles && onlineProfiles.length > 0) {
+        recruitedBot = onlineProfiles[Math.floor(Math.random() * onlineProfiles.length)];
+      } else {
+        const { data: existingBot } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('username', 'sers_bot')
+          .maybeSingle();
+
+        if (existingBot) {
+          recruitedBot = existingBot;
+        } else {
+          recruitedBot = currentUser || {
+            id: 'mock_bot',
+            username: 'sers_bot',
+            display_name: 'Robot SERS',
+            avatar_url: 'https://api.dicebear.com/7.x/identicon/svg?seed=sers_bot',
+            bio: 'Automated feedback agent.'
+          };
+        }
+      }
+
+      if (!recruitedBot) return;
 
       const botPhrases = [
         "Just completed mapping my PostgreSQL RLS policies in my Supabase query editor! Extreme safety.",
@@ -542,7 +733,7 @@ export default function App() {
         .from('posts')
         .insert({
           content: randomContent,
-          profile_id: selectedBot.id
+          profile_id: recruitedBot.id
         });
 
       if (error) throw error;
@@ -555,7 +746,7 @@ export default function App() {
   // 10. Tag filter click
   const handleHashtagClick = (tag: string) => {
     setSearchQuery(`#${tag}`);
-    setActiveTab('home');
+    window.location.hash = '#/home';
   };
 
   const filteredPosts = posts.filter((post) => {
@@ -570,14 +761,12 @@ export default function App() {
   });
 
   const handleProfileNavigation = (profile: Profile) => {
-    setSelectedProfile(profile);
-    setActiveTab('profile');
+    window.location.hash = `#/profile/${profile.username}`;
   };
 
   const handleMyProfileNavigation = () => {
     if (currentUser) {
-      setSelectedProfile(currentUser);
-      setActiveTab('profile');
+      window.location.hash = `#/profile/${currentUser.username}`;
     } else {
       setShowAuthModal(true);
     }
